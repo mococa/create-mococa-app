@@ -42,14 +42,12 @@ jobs:
       - name: Test generator (minimal)
         if: steps.version_check.outputs.changed == 'true'
         run: |
-          mkdir -p /tmp/test-minimal
           node bin/cli.js /tmp/test-minimal --name test-minimal --domain test-minimal.com --skip
           echo "✓ Minimal test passed"
 
       - name: Test generator (full)
         if: steps.version_check.outputs.changed == 'true'
         run: |
-          mkdir -p /tmp/test-full
           node bin/cli.js /tmp/test-full --name test-full --domain test-full.com --lambda --dynamo --s3
           echo "✓ Full test passed"
 
