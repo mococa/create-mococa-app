@@ -14,7 +14,7 @@ interface Props {
   environment: string;
   certificate: string | Output<string>;
   domain: string;
-  dynamodb?: DynamoResource;
+  dynamodb: DynamoResource;
 }
 
 export class ApigatewayResource extends ComponentResource {

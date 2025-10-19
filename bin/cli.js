@@ -316,6 +316,24 @@ async function cloneAndConfigureElysiaApi(targetPath, projectName, environments,
     );
     fs.writeFileSync(envExamplePath, envContent);
 
+    // Update docker-compose.yml
+    console.log(chalk.cyan('  Updating docker-compose.yml...'));
+    const dockerComposePath = path.join(apiPath, 'docker-compose.yml');
+    if (fs.existsSync(dockerComposePath)) {
+      let dockerContent = fs.readFileSync(dockerComposePath, 'utf8');
+      dockerContent = dockerContent.replace(/bun_app/g, `${projectName}_api`);
+      fs.writeFileSync(dockerComposePath, dockerContent);
+    }
+
+    // Update API README.md
+    console.log(chalk.cyan('  Updating API README.md...'));
+    const apiReadmePath = path.join(apiPath, 'README.md');
+    if (fs.existsSync(apiReadmePath)) {
+      let readmeContent = fs.readFileSync(apiReadmePath, 'utf8');
+      readmeContent = readmeContent.replace(/bun_app/g, projectName);
+      fs.writeFileSync(apiReadmePath, readmeContent);
+    }
+
     // Remove Cognito-related auth endpoints if --cognito flag is not set
     if (!includeCognito) {
       console.log(chalk.cyan('  Removing Cognito authentication endpoints...'));
@@ -432,6 +450,17 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
       }
     }
 
+    // Process apigateway.ts to remove dynamo-specific code if --dynamo is not set
+    if (includeLambda && !includeDynamo && entry.name === 'apigateway.ts' && srcPath.includes('infrastructure/src/resources')) {
+      let content = fs.readFileSync(srcPath, 'utf8');
+      // Remove DynamoResource import
+      content = content.replace(/import type \{ DynamoResource \} from '\.\/dynamo';\n/g, '');
+      // Remove dynamodb prop from Props interface (required prop)
+      content = content.replace(/  dynamodb: DynamoResource;\n/g, '');
+      fs.writeFileSync(destPath, content);
+      continue;
+    }
+
     // Skip dynamo-specific files if --dynamo flag is not set
     if (!includeDynamo) {
       if (relativePath.includes('infrastructure/src/resources/dynamo')) {
@@ -500,6 +529,13 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           // Remove specific exports based on flags
           if (!includeLambda) {
             content = content.replace(/export const apigwUrl = backend\.apigateway\.api\.apiEndpoint;\n/g, '');
+            // Remove API Gateway DNS record
+            content = content.replace(/\/\/ API Gateway DNS\nconst apigwSubdomain = apigwDomain\.replace\(`\.\$\{DOMAIN_BASE\}`, ''\);\nnew DNSResource\([\s\S]*?\{ dependsOn: \[backend\.apigateway\.domain\] \},\n\);\n\n/g, '');
+            // Remove apigwDomain variable
+            content = content.replace(/const apigwDomain = DOMAINS\.apigw\[environment\];\n/g, '');
+            // Remove certificateArn and apigwDomain from backend props
+            content = content.replace(/  certificateArn: certificate\.acm\.arn,\n/g, '');
+            content = content.replace(/  apigwDomain,\n/g, '');
           }
           if (!includeDynamo) {
             content = content.replace(/export const dynamoTableName = backend\.dynamo\.table\.name;\n/g, '');
@@ -546,6 +582,9 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           content = content.replace(/apigwDomain: string;\n/g, '');
           content = content.replace(/, certificateArn, apigwDomain/g, '');
           content = content.replace(/\/\* ---------- API Gateway \+ Lambdas ---------- \*\/[\s\S]*?(?=\n  \})/g, '');
+        } else if (!includeDynamo) {
+          // If Lambda is included but DynamoDB is not, remove the dynamodb prop from apigateway
+          content = content.replace(/        dynamodb: this\.dynamo,\n/g, '');
         }
       }
 
