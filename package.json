@@ -16,7 +16,7 @@
     "biome",
     "create-app"
   ],
-  "author": "",
+  "author": "Luiz Felipe Moureau",
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
