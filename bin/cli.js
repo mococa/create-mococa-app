@@ -198,8 +198,8 @@ async function main() {
     });
   }
 
-  // Ask for directory location if --current flag is not provided
-  if (!useCurrentDir) {
+  // Ask for directory location if --current flag is not provided and not skipping prompts
+  if (!useCurrentDir && !skipPrompts && !fullSetup) {
     questions.push({
       type: 'select',
       name: 'directoryChoice',
@@ -230,25 +230,19 @@ async function main() {
         initial: false,
       },
       {
-        type: 'select',
+        type: (prev, values) => values.wantApi ? 'select' : null,
         name: 'apiType',
         message: 'Which API framework would you like to use?',
         choices: [
           { title: 'Elysia (Bun)', value: 'elysia' }
         ],
         initial: 0,
-        skip: function (prev, values) {
-          return !values.wantApi;
-        }
       },
       {
-        type: 'confirm',
+        type: (prev, values) => values.wantApi ? 'confirm' : null,
         name: 'wantCognito',
         message: 'Include AWS Cognito authentication (email/password)?',
         initial: false,
-        skip: function (prev, values) {
-          return !values.wantApi;
-        }
       },
       {
         type: 'confirm',
@@ -439,7 +433,9 @@ async function cloneAndConfigureElysiaApi(targetPath, projectName, environments,
     const pkgPath = path.join(apiPath, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
     pkg.name = `@${projectName}/api`;
-    delete pkg.scripts.fmt;
+    if (pkg.scripts && pkg.scripts.fmt) {
+      delete pkg.scripts.fmt;
+    }
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
     // Update main.ts with constants import and CORS configuration
@@ -751,10 +747,14 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
       // Replace conditional scripts in root package.json
       if (entry.name === 'package.json' && srcPath === path.join(src, 'package.json')) {
         const pkg = JSON.parse(content);
-        if (!includeLambda) {
+        if (!includeLambda && pkg.scripts) {
           // Remove Lambda build scripts
-          delete pkg.scripts['build:lambdas'];
-          pkg.scripts.build = 'bun run build:website';
+          if (pkg.scripts['build:lambdas']) {
+            delete pkg.scripts['build:lambdas'];
+          }
+          if (pkg.scripts.build) {
+            pkg.scripts.build = 'bun run build:website';
+          }
         }
         content = JSON.stringify(pkg, null, 2) + '\n';
       }
