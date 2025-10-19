@@ -239,7 +239,7 @@ async function main() {
         initial: 0,
       },
       {
-        type: (prev, values) => values.wantApi ? 'confirm' : null,
+        type: 'confirm',
         name: 'wantCognito',
         message: 'Include AWS Cognito authentication (email/password)?',
         initial: false,
