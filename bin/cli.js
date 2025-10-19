@@ -15,13 +15,25 @@ async function main() {
   // Check for flags and positional args
   const args = process.argv.slice(2);
 
-  const skipAll = args.includes('--skip');
-  const includeLambda = !skipAll && args.includes('--lambda');
-  const includeDynamo = !skipAll && args.includes('--dynamo');
-  const includeS3 = !skipAll && args.includes('--s3');
-  const includeApi = !skipAll && args.includes('--api');
-  const includeCognito = !skipAll && args.includes('--cognito');
-  const includeEnvironments = args.includes('--environments');
+  const skipPrompts = args.includes('--skip');
+
+  // Default values when --skip is used
+  const defaultValues = {
+    api: false,
+    cognito: false,
+    lambda: false,
+    dynamo: false,
+    s3: false,
+    environments: false,
+  };
+
+  // When --skip is used, start with defaults. Individual flags can override.
+  const includeLambda = args.includes('--lambda') || (!skipPrompts ? null : defaultValues.lambda);
+  const includeDynamo = args.includes('--dynamo') || (!skipPrompts ? null : defaultValues.dynamo);
+  const includeS3 = args.includes('--s3') || (!skipPrompts ? null : defaultValues.s3);
+  const includeApi = args.includes('--api') || (!skipPrompts ? null : defaultValues.api);
+  const includeCognito = args.includes('--cognito') || (!skipPrompts ? null : defaultValues.cognito);
+  const includeEnvironments = args.includes('--environments') || (!skipPrompts ? null : defaultValues.environments);
   const useCurrentDir = args.includes('--current') || args.includes('-c');
 
   // Extract --domain flag value
@@ -98,8 +110,16 @@ async function main() {
     });
   }
 
-  // Prompt for features if not provided via flags
-  if (!skipAll && !includeLambda && !includeDynamo && !includeS3 && !includeApi && !includeCognito && !includeEnvironments) {
+  // Prompt for features if not provided via flags and --skip is not used
+  const shouldPromptFeatures = !skipPrompts &&
+    includeLambda === null &&
+    includeDynamo === null &&
+    includeS3 === null &&
+    includeApi === null &&
+    includeCognito === null &&
+    includeEnvironments === null;
+
+  if (shouldPromptFeatures) {
     questions.push(
       {
         type: 'confirm',
@@ -156,7 +176,7 @@ async function main() {
   }
 
   // If --environments flag OR user wants environments, ask for environment names
-  if (includeEnvironments || (!skipAll && !includeEnvironments && !includeLambda && !includeDynamo && !includeS3 && !includeApi && !includeCognito)) {
+  if (includeEnvironments || shouldPromptFeatures) {
     questions.push({
       type: (prev, values) => {
         // Only ask if --environments flag OR user confirmed they want environments
@@ -219,14 +239,15 @@ async function main() {
 
   const targetPath = path.resolve(process.cwd(), targetDir);
 
-  // Determine final feature flags (CLI flags take precedence, then prompts)
-  const finalIncludeApi = includeApi || wantApi;
+  // Determine final feature flags
+  // Priority: CLI flag > prompt response > default value (if --skip was used)
+  const finalIncludeApi = includeApi !== null ? includeApi : (wantApi || false);
   const finalApiType = apiType || 'elysia'; // Default to elysia for now
-  const finalIncludeCognito = includeCognito || wantCognito;
-  const finalIncludeLambda = includeLambda || wantLambda;
-  const finalIncludeDynamo = includeDynamo || wantDynamo;
-  const finalIncludeS3 = includeS3 || wantS3;
-  const finalIncludeEnvironments = includeEnvironments || wantEnvironments;
+  const finalIncludeCognito = includeCognito !== null ? includeCognito : (wantCognito || false);
+  const finalIncludeLambda = includeLambda !== null ? includeLambda : (wantLambda || false);
+  const finalIncludeDynamo = includeDynamo !== null ? includeDynamo : (wantDynamo || false);
+  const finalIncludeS3 = includeS3 !== null ? includeS3 : (wantS3 || false);
+  const finalIncludeEnvironments = includeEnvironments !== null ? includeEnvironments : (wantEnvironments || false);
 
   // Parse environments
   const environments = finalIncludeEnvironments && environmentsInput
