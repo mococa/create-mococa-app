@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "bin",
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "pretty": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": ["./node_modules/@types"],
+    "strict": false
+  },
+  "files": ["./src/index.ts"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@{{PROJECT_NAME}}/constants",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Shared constants for {{PROJECT_NAME}}",
+  "main": "src/index.ts",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

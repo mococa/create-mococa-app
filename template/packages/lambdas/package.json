@@ -1,0 +1,19 @@
+{
+  "name": "@{{PROJECT_NAME}}/lambdas",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Lambda functions for {{PROJECT_NAME}}",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.24.2"
+  },
+  "dependencies": {
+    "glob": "^11.0.3"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "{{PROJECT_NAME}}-monorepo",
+  "version": "1.0.0",
+  "description": "A monorepo project with Nullstack and Biome",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "start": "cd apps/landing-page && bun run start",
+    "build:lambdas": "cd packages/lambdas && bun run build",
+    "build:website": "cd apps/landing-page && bun run build",
+    "build": "bun run build:lambdas && bun run build:website",
+    "fmt": "biome format . --fix"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "@types/nodemon": "^3.1.1"
+  },
+  "dependencies": {
+    "nullstack": "^0.20.4"
+  }
+}

@@ -1,0 +1,7 @@
+name: {{PROJECT_NAME}}
+runtime: nodejs
+description: {{PROJECT_NAME}} pulumi program
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-typescript

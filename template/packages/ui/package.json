@@ -1,0 +1,10 @@
+{
+  "name": "@{{PROJECT_NAME}}/ui",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "nullstack": "~0.20.0"
+  }
+}

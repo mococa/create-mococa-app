@@ -1,0 +1,28 @@
+{
+  "name": "create-mococa-app",
+  "version": "1.0.0",
+  "description": "Create a new Mococa-style app with Nullstack, Biome, and monorepo structure",
+  "type": "module",
+  "bin": {
+    "create-mococa-app": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nullstack",
+    "template",
+    "monorepo",
+    "biome",
+    "create-app"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "prompts": "^2.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
