@@ -15,9 +15,6 @@ async function main() {
   // Check for flags and positional args
   const args = process.argv.slice(2);
 
-  // First non-flag argument is the project name
-  const customProjectName = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-'));
-
   const skipAll = args.includes('--skip');
   const includeLambda = !skipAll && args.includes('--lambda');
   const includeDynamo = !skipAll && args.includes('--dynamo');
@@ -30,14 +27,23 @@ async function main() {
   // Extract --domain flag value
   const domainFlagIndex = args.findIndex(arg => arg.startsWith('--domain'));
   let customDomain = null;
+  let domainValueIndex = -1;
   if (domainFlagIndex !== -1) {
     const domainArg = args[domainFlagIndex];
     if (domainArg.includes('=')) {
       customDomain = domainArg.split('=')[1];
     } else if (args[domainFlagIndex + 1] && !args[domainFlagIndex + 1].startsWith('--')) {
       customDomain = args[domainFlagIndex + 1];
+      domainValueIndex = domainFlagIndex + 1;
     }
   }
+
+  // First non-flag argument is the project name (excluding domain value)
+  const customProjectName = args.find((arg, index) =>
+    !arg.startsWith('--') &&
+    !arg.startsWith('-') &&
+    index !== domainValueIndex
+  );
 
   const questions = [];
 
@@ -227,8 +233,8 @@ async function main() {
     ? environmentsInput.split(',').map(e => e.trim())
     : ['production'];
 
-  // Check if directory exists
-  if (fs.existsSync(targetPath)) {
+  // Check if directory exists and is not empty
+  if (fs.existsSync(targetPath) && targetDir !== '.') {
     const { overwrite } = await prompts({
       type: 'confirm',
       name: 'overwrite',
@@ -242,6 +248,24 @@ async function main() {
     }
 
     fs.rmSync(targetPath, { recursive: true, force: true });
+  }
+
+  // For current directory, check if it has files (warn but don't delete)
+  if (targetDir === '.' && fs.existsSync(targetPath)) {
+    const files = fs.readdirSync(targetPath);
+    if (files.length > 0) {
+      const { proceed } = await prompts({
+        type: 'confirm',
+        name: 'proceed',
+        message: 'Current directory is not empty. Files may be overwritten. Continue?',
+        initial: false,
+      });
+
+      if (!proceed) {
+        console.log(chalk.red('\n❌ Setup cancelled\n'));
+        process.exit(1);
+      }
+    }
   }
 
   console.log(chalk.cyan(`\n📁 Creating project in ${targetPath}...\n`));
