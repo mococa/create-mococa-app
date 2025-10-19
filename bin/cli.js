@@ -294,7 +294,12 @@ async function main() {
     });
   }
 
-  const response = await prompts(questions);
+  const response = await prompts(questions, {
+    onCancel: () => {
+      console.log(chalk.red('\n❌ Setup cancelled\n'));
+      process.exit(1);
+    }
+  });
 
   // Use custom project name or prompted project name
   const rawProjectName = customProjectName || response.projectName;
