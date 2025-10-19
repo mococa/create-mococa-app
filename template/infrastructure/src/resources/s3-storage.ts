@@ -1,11 +1,11 @@
 /* ---------- External ---------- */
 import { ComponentResource, type ComponentResourceOptions } from '@pulumi/pulumi';
 import { s3 } from '@pulumi/aws';
-import { S3_STORAGE_BUCKETS, type Environment } from '@{{PROJECT_NAME}}/constants';
 
 /* ---------- Interfaces ---------- */
 interface Props {
   environment: string;
+  bucketName: string;
 }
 
 export class S3StorageResource extends ComponentResource {
@@ -16,8 +16,7 @@ export class S3StorageResource extends ComponentResource {
   public constructor(name: string, props: Props, opts?: ComponentResourceOptions) {
     super(`${name}:index:${props.environment}`, name, {}, opts);
 
-    const { environment } = props;
-    const bucketName = S3_STORAGE_BUCKETS[environment as Environment];
+    const { environment, bucketName } = props;
 
     this.bucket = new s3.BucketV2(
       'bucket',

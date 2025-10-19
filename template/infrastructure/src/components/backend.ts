@@ -23,6 +23,26 @@ interface Props {
    * Custom domain for API Gateway
    */
   apigwDomain: string;
+
+  /**
+   * DynamoDB table name
+   */
+  dynamoTableName: string;
+
+  /**
+   * S3 storage bucket name
+   */
+  s3BucketName: string;
+
+  /**
+   * Cognito User Pool name
+   */
+  cognitoUserpoolName: string;
+
+  /**
+   * Cognito User Pool Client name
+   */
+  cognitoUserpoolClientName: string;
 }
 
 export class BackendComponent extends ComponentResource {
@@ -34,16 +54,16 @@ export class BackendComponent extends ComponentResource {
   public constructor(name: string, props: Props, opts?: ComponentResourceOptions) {
     super(`${name}:backend:${props.environment}`, name, {}, opts);
 
-    const { environment, certificateArn, apigwDomain } = props;
+    const { environment, certificateArn, apigwDomain, dynamoTableName, s3BucketName, cognitoUserpoolName, cognitoUserpoolClientName } = props;
 
     /* ---------- DynamoDB ---------- */
-    this.dynamo = new DynamoResource('dynamo', { environment }, { parent: this });
+    this.dynamo = new DynamoResource('dynamo', { environment, tableName: dynamoTableName }, { parent: this });
 
     /* ---------- S3 Storage ---------- */
-    this.storage = new S3StorageResource('storage', { environment }, { parent: this });
+    this.storage = new S3StorageResource('storage', { environment, bucketName: s3BucketName }, { parent: this });
 
     /* ---------- Cognito ---------- */
-    this.cognito = new CognitoResource('cognito', { environment }, { parent: this });
+    this.cognito = new CognitoResource('cognito', { environment, userpoolName: cognitoUserpoolName, userpoolClientName: cognitoUserpoolClientName }, { parent: this });
 
     /* ---------- API Gateway + Lambdas ---------- */
     this.apigateway = new ApigatewayResource(

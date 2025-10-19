@@ -1,7 +1,6 @@
 /* ---------- External ---------- */
 import { ComponentResource, type ComponentResourceOptions } from '@pulumi/pulumi';
 import { dynamodb } from '@pulumi/aws';
-import { DYNAMODB_TABLES, type Environment } from '@{{PROJECT_NAME}}/constants';
 
 /* ---------- Interfaces ---------- */
 interface Props {
@@ -9,6 +8,11 @@ interface Props {
    * Application environment, such as development, staging, production...
    */
   environment: string;
+
+  /**
+   * DynamoDB table name
+   */
+  tableName: string;
 }
 
 export class DynamoResource extends ComponentResource {
@@ -17,8 +21,7 @@ export class DynamoResource extends ComponentResource {
   public constructor(name: string, props: Props, opts?: ComponentResourceOptions) {
     super(`${name}:index:${props.environment}`, name, {}, opts);
 
-    const { environment } = props;
-    const tableName = DYNAMODB_TABLES[environment as Environment];
+    const { environment, tableName } = props;
 
     this.table = new dynamodb.Table(
       'table',

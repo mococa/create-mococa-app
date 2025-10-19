@@ -585,7 +585,7 @@ async function cloneAndConfigureElysiaApi(targetPath, projectName, environments,
   }
 }
 
-function copyDirectory(src, dest, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments) {
+function copyDirectory(src, dest, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot = src) {
   fs.mkdirSync(dest, { recursive: true });
 
   const entries = fs.readdirSync(src, { withFileTypes: true });
@@ -594,7 +594,7 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
-    const relativePath = path.relative(src, srcPath);
+    const relativePath = path.relative(templateRoot, srcPath);
 
     // Skip lambda-specific files if --lambda flag is not set
     if (!includeLambda) {
@@ -640,7 +640,7 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
     }
 
     if (entry.isDirectory()) {
-      copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments);
+      copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot);
     } else {
       let content = fs.readFileSync(srcPath, 'utf8');
 
@@ -649,7 +649,7 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
 
       // Replace environments in constants/src/index.ts
       if (entry.name === 'index.ts' && srcPath.includes('packages/constants/src')) {
-        content = generateConstantsFile(projectName, domain, environments);
+        content = generateConstantsFile(projectName, domain, environments, includeApi, includeLambda, includeDynamo, includeS3, includeCognito);
       }
 
       // Generate README based on included features
@@ -684,6 +684,40 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           content = content.replace(/export const cognitoUserPoolClientId = backend\.cognito\.userpoolClient\.id;\n/g, '');
         } else {
           // Remove specific exports based on flags
+          // Add resource name imports and props
+          let backendPropsAddition = '';
+          let constantsImports = [];
+
+          if (includeDynamo) {
+            constantsImports.push('DYNAMODB_TABLES');
+            backendPropsAddition += `  dynamoTableName: DYNAMODB_TABLES[environment],\n`;
+          }
+
+          if (includeS3) {
+            constantsImports.push('S3_BUCKETS');
+            backendPropsAddition += `  s3BucketName: S3_BUCKETS[environment],\n`;
+          }
+
+          if (includeCognito) {
+            constantsImports.push('COGNITO_USER_POOLS', 'COGNITO_USER_POOL_CLIENTS');
+            backendPropsAddition += `  cognitoUserpoolName: COGNITO_USER_POOLS[environment],\n  cognitoUserpoolClientName: COGNITO_USER_POOL_CLIENTS[environment],\n`;
+          }
+
+          // Update constants import to include what we need
+          if (constantsImports.length > 0) {
+            const constantsImportStr = constantsImports.join(', ');
+            content = content.replace(
+              /import \{ DOMAIN_BASE, DOMAINS, type Environment \} from '@\{\{PROJECT_NAME\}\}\/constants';/g,
+              `import { DOMAIN_BASE, DOMAINS, ${constantsImportStr}, type Environment } from '@{{PROJECT_NAME}}/constants';`
+            );
+          }
+
+          // Add the props to BackendComponent instantiation
+          content = content.replace(
+            /const backend = new BackendComponent\(`backend-\$\{environment\}`, \{\n  environment,\n  certificateArn: certificate\.acm\.arn,\n  apigwDomain,\n\}\);/g,
+            `const backend = new BackendComponent(\`backend-\${environment}\`, {\n  environment,\n  certificateArn: certificate.acm.arn,\n  apigwDomain,\n${backendPropsAddition}});`
+          );
+
           if (!includeLambda) {
             content = content.replace(/export const apigwUrl = backend\.apigateway\.api\.apiEndpoint;\n/g, '');
             // Remove API Gateway DNS record
@@ -713,6 +747,8 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
         if (!includeDynamo) {
           content = content.replace(/import \{ DynamoResource \}.*\n/g, '');
           content = content.replace(/public readonly dynamo: DynamoResource;\n/g, '');
+          content = content.replace(/\/\*\*\n   \* DynamoDB table name\n   \*\/\n  dynamoTableName: string;\n\n/g, '');
+          content = content.replace(/, dynamoTableName/g, '');
           content = content.replace(/\/\* ---------- DynamoDB ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
         }
 
@@ -720,6 +756,8 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
         if (!includeS3) {
           content = content.replace(/import \{ S3StorageResource \}.*\n/g, '');
           content = content.replace(/public readonly storage: S3StorageResource;\n/g, '');
+          content = content.replace(/\/\*\*\n   \* S3 storage bucket name\n   \*\/\n  s3BucketName: string;\n\n/g, '');
+          content = content.replace(/, s3BucketName/g, '');
           content = content.replace(/\/\* ---------- S3 Storage ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
         }
 
@@ -727,18 +765,18 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
         if (!includeCognito) {
           content = content.replace(/import \{ CognitoResource \}.*\n/g, '');
           content = content.replace(/public readonly cognito: CognitoResource;\n/g, '');
+          content = content.replace(/\/\*\*\n   \* Cognito User Pool name\n   \*\/\n  cognitoUserpoolName: string;\n\n  \/\*\*\n   \* Cognito User Pool Client name\n   \*\/\n  cognitoUserpoolClientName: string;\n/g, '');
+          content = content.replace(/, cognitoUserpoolName, cognitoUserpoolClientName/g, '');
           content = content.replace(/\/\* ---------- Cognito ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
         }
 
         // Remove API Gateway if not included
         if (!includeLambda) {
-          content = content.replace(/import \{ ApigatewayResource \}.*\n/g, '');
-          content = content.replace(/public readonly apigateway: ApigatewayResource;\n/g, '');
-          content = content.replace(/\/\*\*\n   \* ACM certificate ARN[\s\S]*?apigwDomain: string;\n/g, '');
-          content = content.replace(/certificateArn: string;\n/g, '');
-          content = content.replace(/apigwDomain: string;\n/g, '');
+          content = content.replace(/import \{ ApigatewayResource \} from '\.\.\/resources\/apigateway';\n/g, '');
+          content = content.replace(/  public readonly apigateway: ApigatewayResource;\n/g, '');
+          content = content.replace(/  \/\*\*\n   \* ACM certificate ARN for API Gateway custom domain\n   \*\/\n  certificateArn: string;\n\n  \/\*\*\n   \* Custom domain for API Gateway\n   \*\/\n  apigwDomain: string;\n\n/g, '');
           content = content.replace(/, certificateArn, apigwDomain/g, '');
-          content = content.replace(/\/\* ---------- API Gateway \+ Lambdas ---------- \*\/[\s\S]*?(?=\n  \})/g, '');
+          content = content.replace(/\n\n    \/\* ---------- API Gateway \+ Lambdas ---------- \*\/[\s\S]*?(?=\n  \})/g, '');
         } else if (!includeDynamo) {
           // If Lambda is included but DynamoDB is not, remove the dynamodb prop from apigateway
           content = content.replace(/        dynamodb: this\.dynamo,\n/g, '');
@@ -896,7 +934,7 @@ ${techStack.join('\n')}${backendSection}
 `;
 }
 
-function generateConstantsFile(projectName, domain, environments) {
+function generateConstantsFile(projectName, domain, environments, includeApi, includeLambda, includeDynamo, includeS3, includeCognito) {
   const envsObject = environments.map(env => `  ${env}: '${env}'`).join(',\n');
   const envsType = environments.map(env => `'${env}'`).join(' | ');
 
@@ -907,35 +945,72 @@ function generateConstantsFile(projectName, domain, environments) {
     return `    ${env}: ${domainValue}`;
   }).join(',\n');
 
-  // Generate domain config for API
-  const apiDomains = environments.map(env => {
-    const isProduction = env === 'production';
-    const domainValue = isProduction ? '`api.${DOMAIN_BASE}`' : `\`api-${env}.\${DOMAIN_BASE}\``;
-    return `    ${env}: ${domainValue}`;
-  }).join(',\n');
+  // Build domains object conditionally
+  let domainsObject = `  'landing-page': {
+${landingPageDomains},
+  },`;
 
-  // Generate domain config for apigw
-  const apigwDomains = environments.map(env => {
-    const isProduction = env === 'production';
-    const domainValue = isProduction ? '`apigw.${DOMAIN_BASE}`' : `\`apigw-${env}.\${DOMAIN_BASE}\``;
-    return `    ${env}: ${domainValue}`;
-  }).join(',\n');
+  if (includeApi) {
+    const apiDomains = environments.map(env => {
+      const isProduction = env === 'production';
+      const domainValue = isProduction ? '`api.${DOMAIN_BASE}`' : `\`api-${env}.\${DOMAIN_BASE}\``;
+      return `    ${env}: ${domainValue}`;
+    }).join(',\n');
+    domainsObject += `\n  api: {
+${apiDomains},
+  },`;
+  }
 
-  const dynamoTables = environments.map(env =>
-    `  ${env}: \`\${PROJECT_NAME}-Table-${env}\``
-  ).join(',\n');
+  if (includeLambda) {
+    const apigwDomains = environments.map(env => {
+      const isProduction = env === 'production';
+      const domainValue = isProduction ? '`apigw.${DOMAIN_BASE}`' : `\`apigw-${env}.\${DOMAIN_BASE}\``;
+      return `    ${env}: ${domainValue}`;
+    }).join(',\n');
+    domainsObject += `\n  apigw: {
+${apigwDomains},
+  },`;
+  }
 
-  const s3Buckets = environments.map(env =>
-    `  ${env}: \`\${PROJECT_NAME}-storage-${env}\``
-  ).join(',\n');
+  let additionalConstants = '';
 
-  const cognitoUserPools = environments.map(env =>
-    `  ${env}: \`\${PROJECT_NAME}-userpool-${env}\``
-  ).join(',\n');
+  if (includeDynamo) {
+    const dynamoTables = environments.map(env =>
+      `  ${env}: \`\${PROJECT_NAME}-Table-${env}\``
+    ).join(',\n');
+    additionalConstants += `\n// DynamoDB table names per environment
+export const DYNAMODB_TABLES: Record<Environment, string> = {
+${dynamoTables},
+};\n`;
+  }
 
-  const cognitoUserPoolClients = environments.map(env =>
-    `  ${env}: \`\${PROJECT_NAME}-userpool-client-${env}\``
-  ).join(',\n');
+  if (includeS3) {
+    const s3Buckets = environments.map(env =>
+      `  ${env}: \`\${PROJECT_NAME}-storage-${env}\``
+    ).join(',\n');
+    additionalConstants += `\n// S3 bucket names per environment
+export const S3_STORAGE_BUCKETS: Record<Environment, string> = {
+${s3Buckets},
+};\n`;
+  }
+
+  if (includeCognito) {
+    const cognitoUserPools = environments.map(env =>
+      `  ${env}: \`\${PROJECT_NAME}-userpool-${env}\``
+    ).join(',\n');
+    const cognitoUserPoolClients = environments.map(env =>
+      `  ${env}: \`\${PROJECT_NAME}-userpool-client-${env}\``
+    ).join(',\n');
+    additionalConstants += `\n// Cognito User Pool names per environment
+export const COGNITO_USER_POOLS: Record<Environment, string> = {
+${cognitoUserPools},
+};
+
+// Cognito User Pool Client names per environment
+export const COGNITO_USER_POOL_CLIENTS: Record<Environment, string> = {
+${cognitoUserPoolClients},
+};\n`;
+  }
 
   return `// Project name
 export const PROJECT_NAME = '${projectName}';
@@ -952,36 +1027,9 @@ export type Environment = ${envsType};
 
 // Domain configuration by app and environment
 export const DOMAINS: Record<string, Record<Environment, string>> = {
-  'landing-page': {
-${landingPageDomains},
-  },
-  api: {
-${apiDomains},
-  },
-  apigw: {
-${apigwDomains},
-  },
+${domainsObject}
 };
-
-// DynamoDB table names per environment
-export const DYNAMODB_TABLES: Record<Environment, string> = {
-${dynamoTables},
-};
-
-// S3 bucket names per environment
-export const S3_STORAGE_BUCKETS: Record<Environment, string> = {
-${s3Buckets},
-};
-
-// Cognito User Pool names per environment
-export const COGNITO_USER_POOLS: Record<Environment, string> = {
-${cognitoUserPools},
-};
-
-// Cognito User Pool Client names per environment
-export const COGNITO_USER_POOL_CLIENTS: Record<Environment, string> = {
-${cognitoUserPoolClients},
-};
+${additionalConstants}
 `;
 }
 

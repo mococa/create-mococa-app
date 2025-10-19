@@ -2,15 +2,22 @@
 import { cognito } from '@pulumi/aws';
 import { ComponentResource, type ComponentResourceOptions } from '@pulumi/pulumi';
 
-/* ---------- Constants ---------- */
-import { COGNITO_USER_POOLS, COGNITO_USER_POOL_CLIENTS, type Environment } from '@{{PROJECT_NAME}}/constants';
-
 /* ---------- Interfaces ---------- */
 interface Props {
   /**
    * Application environment, such as development, staging, production...
    */
   environment: string;
+
+  /**
+   * Cognito User Pool name
+   */
+  userpoolName: string;
+
+  /**
+   * Cognito User Pool Client name
+   */
+  userpoolClientName: string;
 }
 
 export class CognitoResource extends ComponentResource {
@@ -20,9 +27,7 @@ export class CognitoResource extends ComponentResource {
   public constructor(name: string, props: Props, opts?: ComponentResourceOptions) {
     super(`${name}:index:${props.environment}`, name, {}, opts);
 
-    const { environment } = props;
-    const userpoolName = COGNITO_USER_POOLS[environment as Environment];
-    const userpoolClientName = COGNITO_USER_POOL_CLIENTS[environment as Environment];
+    const { environment, userpoolName, userpoolClientName } = props;
 
     this.userpool = new cognito.UserPool(
       'userpool',
