@@ -271,12 +271,13 @@ async function main() {
     );
   }
 
-  // If --environments flag OR user wants environments, ask for environment names
-  if (includeEnvironments || shouldPromptFeatures) {
+  // If --environments flag explicitly passed (not from --full/--skip), ask for environment names
+  const explicitEnvironmentsFlag = args.includes('--environments');
+  if ((explicitEnvironmentsFlag || shouldPromptFeatures) && !skipPrompts && !fullSetup) {
     questions.push({
       type: (prev, values) => {
-        // Only ask if --environments flag OR user confirmed they want environments
-        if (includeEnvironments || values.wantEnvironments) return 'text';
+        // Only ask if explicit --environments flag OR user confirmed they want environments
+        if (explicitEnvironmentsFlag || values.wantEnvironments) return 'text';
         return null;
       },
       name: 'environments',
