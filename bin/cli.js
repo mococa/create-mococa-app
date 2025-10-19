@@ -178,8 +178,8 @@ async function main() {
     });
   }
 
-  // Ask for domain if not provided via flag
-  if (!customDomain) {
+  // Ask for domain if not provided via flag and not skipping prompts
+  if (!customDomain && !skipPrompts && !fullSetup) {
     questions.push({
       type: 'text',
       name: 'domain',
@@ -326,7 +326,7 @@ async function main() {
     wantDynamo,
     wantS3,
     wantEnvironments
-  } = response;
+  } = response || {};
 
   // Determine target directory
   let targetDir;
