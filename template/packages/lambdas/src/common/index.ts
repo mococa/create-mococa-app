@@ -1,10 +1,10 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayEvent, Context } from 'aws-lambda';
 
 export const safewrapper =
-  (lambda: (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult>) =>
-  async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  (lambda: (event: APIGatewayEvent, context?: Context) => Promise<any>) =>
+  async (event: APIGatewayEvent, context?: Context) => {
     try {
-      return await lambda(event);
+      return await lambda(event, context);
     } catch (error) {
       console.log({ error });
       return {
