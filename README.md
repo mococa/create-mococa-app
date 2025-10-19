@@ -25,13 +25,15 @@ npm create mococa-app
 ### Usage
 
 ```bash
-npx create-mococa-app [directory] [flags]
+npx create-mococa-app [project-name] [flags]
 ```
 
 **Arguments:**
-- `[directory]` - Optional. Target directory for the project (e.g., `.`, `./my-app`, `my-app`)
+- `[project-name]` - Optional. Name of your project (e.g., `my-app`, `my-cool-project`)
 
 **Flags:**
+- `--current` or `-c` - Create project in current directory
+- `--domain <domain>` - Specify custom domain (default: `{project-name}.com`)
 - `--skip` - Skip all optional features (creates minimal project)
 - `--api` - Include Elysia API server (Bun-based)
 - `--cognito` - Include AWS Cognito authentication (requires `--api`)
@@ -46,35 +48,44 @@ npx create-mococa-app [directory] [flags]
 # Interactive prompts (default)
 npx create-mococa-app
 
-# Create in current directory
-npx create-mococa-app . --skip
+# Quick start with project name
+npx create-mococa-app my-cool-app
 
-# Create in specific directory
-npx create-mococa-app my-app --api --cognito
+# Create in current directory
+npx create-mococa-app my-app --current
+
+# Create in current directory (short flag)
+npx create-mococa-app my-app -c
+
+# With custom domain
+npx create-mococa-app my-app --domain example.com
 
 # Minimal project (no optional features)
-npx create-mococa-app --skip
+npx create-mococa-app my-app --skip
 
 # With Elysia API server
-npx create-mococa-app --api
+npx create-mococa-app my-app --api
 
 # With Elysia API + Cognito authentication
-npx create-mococa-app --api --cognito
+npx create-mococa-app my-app --api --cognito
 
 # With Lambda support
-npx create-mococa-app --lambda
+npx create-mococa-app my-app --lambda
 
 # With DynamoDB support
-npx create-mococa-app --dynamo
+npx create-mococa-app my-app --dynamo
 
 # With S3 storage support
-npx create-mococa-app --s3
+npx create-mococa-app my-app --s3
 
 # With custom environments (prompts for input)
-npx create-mococa-app --environments
+npx create-mococa-app my-app --environments
 
 # Combine multiple flags
 npx create-mococa-app my-project --api --cognito --lambda --dynamo --s3 --environments
+
+# Full setup in current directory
+npx create-mococa-app my-project -c --api --cognito --lambda --dynamo --s3 --environments
 ```
 
 **Note:** Without `--environments`, only a `production` environment is created by default.
@@ -282,13 +293,15 @@ To test this generator locally before publishing to npm:
 # From any directory, run the local generator
 bunx /path/to/create-mococa-app
 
-# Or navigate to a test directory and run
-cd /tmp/test-project
-bunx ../create-mococa-app . --api --cognito
+# Test with project name and current directory
+bunx /path/to/create-mococa-app my-test-app --current
 
-# Using relative paths
-mkdir test-app
-bunx ../create-mococa-app test-app --lambda --dynamo
+# Test in a specific location
+cd /tmp
+bunx /path/to/create-mococa-app my-test-app --api --cognito
+
+# Test with all features
+bunx /path/to/create-mococa-app test-app --api --cognito --lambda --dynamo --s3 --environments
 ```
 
 ## License

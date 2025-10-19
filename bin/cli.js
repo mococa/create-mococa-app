@@ -15,8 +15,8 @@ async function main() {
   // Check for flags and positional args
   const args = process.argv.slice(2);
 
-  // First non-flag argument is the target directory
-  const customDir = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-'));
+  // First non-flag argument is the project name
+  const customProjectName = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-'));
 
   const skipAll = args.includes('--skip');
   const includeLambda = !skipAll && args.includes('--lambda');
@@ -25,6 +25,7 @@ async function main() {
   const includeApi = !skipAll && args.includes('--api');
   const includeCognito = !skipAll && args.includes('--cognito');
   const includeEnvironments = args.includes('--environments');
+  const useCurrentDir = args.includes('--current') || args.includes('-c');
 
   // Extract --domain flag value
   const domainFlagIndex = args.findIndex(arg => arg.startsWith('--domain'));
@@ -38,8 +39,11 @@ async function main() {
     }
   }
 
-  const questions = [
-    {
+  const questions = [];
+
+  // Ask for project name if not provided as positional argument
+  if (!customProjectName) {
+    questions.push({
       type: 'text',
       name: 'projectName',
       message: 'What is your project name?',
@@ -51,8 +55,8 @@ async function main() {
         }
         return true;
       },
-    },
-  ];
+    });
+  }
 
   // Ask for domain if not provided via flag
   if (!customDomain) {
@@ -60,7 +64,10 @@ async function main() {
       type: 'text',
       name: 'domain',
       message: 'What is your domain?',
-      initial: (prev) => `${prev}.com`,
+      initial: (prev, values) => {
+        const name = customProjectName || prev || values.projectName;
+        return `${name}.com`;
+      },
       validate: (value) => {
         if (!value) return 'Domain is required';
         if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(value)) {
@@ -71,13 +78,17 @@ async function main() {
     });
   }
 
-  // Only ask for target directory if --dir flag is not provided
-  if (!customDir) {
+  // Ask for directory location if --current flag is not provided
+  if (!useCurrentDir) {
     questions.push({
-      type: 'text',
-      name: 'targetDir',
+      type: 'select',
+      name: 'directoryChoice',
       message: 'Where should we create your project?',
-      initial: (prev) => `./${prev}`,
+      choices: [
+        { title: 'Current directory', value: 'current' },
+        { title: 'New folder', value: 'new' }
+      ],
+      initial: 1
     });
   }
 
@@ -162,15 +173,23 @@ async function main() {
 
   const response = await prompts(questions);
 
-  if (!response.projectName) {
+  // Use custom project name or prompted project name
+  const rawProjectName = customProjectName || response.projectName;
+
+  if (!rawProjectName) {
     console.log(chalk.red('\n❌ Setup cancelled\n'));
     process.exit(1);
   }
 
+  // Kebabify and lowercase the project name
+  const projectName = rawProjectName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
   const {
-    projectName: rawProjectName,
-    targetDir: promptTargetDir,
     domain: promptDomain,
+    directoryChoice,
     environments: environmentsInput,
     wantApi,
     apiType,
@@ -181,19 +200,13 @@ async function main() {
     wantEnvironments
   } = response;
 
-  // Use custom directory or prompted directory
-  const targetDir = customDir || promptTargetDir;
-
-  if (!targetDir) {
-    console.log(chalk.red('\n❌ Setup cancelled\n'));
-    process.exit(1);
+  // Determine target directory
+  let targetDir;
+  if (useCurrentDir || directoryChoice === 'current') {
+    targetDir = '.';
+  } else {
+    targetDir = `./${projectName}`;
   }
-
-  // Kebabify and lowercase the project name
-  const projectName = rawProjectName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 
   // Use custom domain from flag or prompt, or default to projectName.com
   const domain = customDomain || promptDomain || `${projectName}.com`;
