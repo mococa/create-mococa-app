@@ -35,6 +35,41 @@ jobs:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install dependencies
+        if: steps.version_check.outputs.changed == 'true'
+        run: npm install
+
+      - name: Test generator (minimal)
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          mkdir -p /tmp/test-minimal
+          node bin/cli.js /tmp/test-minimal --name test-minimal --domain test-minimal.com --skip
+          echo "✓ Minimal test passed"
+
+      - name: Test generator (full)
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          mkdir -p /tmp/test-full
+          node bin/cli.js /tmp/test-full --name test-full --domain test-full.com --lambda --dynamo --s3
+          echo "✓ Full test passed"
+
+      - name: Verify generated structure
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          # Check minimal project structure
+          test -f /tmp/test-minimal/package.json || exit 1
+          test -d /tmp/test-minimal/apps/landing-page || exit 1
+          test -d /tmp/test-minimal/packages/ui || exit 1
+          test -d /tmp/test-minimal/packages/constants || exit 1
+          
+          # Check full project structure
+          test -f /tmp/test-full/package.json || exit 1
+          test -d /tmp/test-full/apps/landing-page || exit 1
+          test -d /tmp/test-full/packages/lambdas || exit 1
+          test -d /tmp/test-full/infrastructure || exit 1
+          
+          echo "✓ Structure verification passed"
+
       - name: Publish to npm
         if: steps.version_check.outputs.changed == 'true'
         run: npm publish --access public

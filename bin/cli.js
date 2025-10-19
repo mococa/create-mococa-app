@@ -38,9 +38,21 @@ async function main() {
     }
   }
 
+  // Extract --name flag value
+  const nameFlagIndex = args.findIndex(arg => arg.startsWith('--name'));
+  let customName = null;
+  if (nameFlagIndex !== -1) {
+    const nameArg = args[nameFlagIndex];
+    if (nameArg.includes('=')) {
+      customName = nameArg.split('=')[1];
+    } else if (args[nameFlagIndex + 1] && !args[nameFlagIndex + 1].startsWith('--')) {
+      customName = args[nameFlagIndex + 1];
+    }
+  }
+
   const questions = [
     {
-      type: 'text',
+      type: customName ? null : 'text',
       name: 'projectName',
       message: 'What is your project name?',
       initial: 'my-app',
@@ -162,24 +174,26 @@ async function main() {
 
   const response = await prompts(questions);
 
-  if (!response.projectName) {
+  // Use custom name from flag or from prompts
+  const rawProjectName = customName || response.projectName;
+
+  if (!rawProjectName) {
     console.log(chalk.red('\n❌ Setup cancelled\n'));
     process.exit(1);
   }
 
   const {
-    projectName: rawProjectName,
-    targetDir: promptTargetDir,
-    domain: promptDomain,
-    environments: environmentsInput,
-    wantApi,
-    apiType,
-    wantCognito,
-    wantLambda,
-    wantDynamo,
-    wantS3,
-    wantEnvironments
-  } = response;
+    targetDir: promptTargetDir = null,
+    domain: promptDomain = null,
+    environments: environmentsInput = null,
+    wantApi = false,
+    apiType = null,
+    wantCognito = false,
+    wantLambda = false,
+    wantDynamo = false,
+    wantS3 = false,
+    wantEnvironments = false
+  } = response || {};
 
   // Use custom directory or prompted directory
   const targetDir = customDir || promptTargetDir;
@@ -410,7 +424,7 @@ async function cloneAndConfigureElysiaApi(targetPath, projectName, environments,
   }
 }
 
-function copyDirectory(src, dest, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments) {
+function copyDirectory(src, dest, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot = src) {
   fs.mkdirSync(dest, { recursive: true });
 
   const entries = fs.readdirSync(src, { withFileTypes: true });
@@ -419,14 +433,17 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
-    const relativePath = path.relative(src, srcPath);
+    const relativePath = path.relative(templateRoot, srcPath);
 
     // Skip lambda-specific files if --lambda flag is not set
     if (!includeLambda) {
       if (
         relativePath.startsWith('packages/lambdas') ||
+        relativePath.startsWith('packages\\lambdas') ||
         relativePath.includes('infrastructure/src/resources/apigateway') ||
-        relativePath.includes('infrastructure/src/resources/lambdas')
+        relativePath.includes('infrastructure\\src\\resources\\apigateway') ||
+        relativePath.includes('infrastructure/src/resources/lambdas') ||
+        relativePath.includes('infrastructure\\src\\resources\\lambdas')
       ) {
         continue;
       }
@@ -434,27 +451,30 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
 
     // Skip dynamo-specific files if --dynamo flag is not set
     if (!includeDynamo) {
-      if (relativePath.includes('infrastructure/src/resources/dynamo')) {
+      if (relativePath.includes('infrastructure/src/resources/dynamo') ||
+          relativePath.includes('infrastructure\\src\\resources\\dynamo')) {
         continue;
       }
     }
 
     // Skip S3 storage-specific files if --s3 flag is not set
     if (!includeS3) {
-      if (relativePath.includes('infrastructure/src/resources/s3-storage')) {
+      if (relativePath.includes('infrastructure/src/resources/s3-storage') ||
+          relativePath.includes('infrastructure\\src\\resources\\s3-storage')) {
         continue;
       }
     }
 
     // Skip Cognito-specific files if --cognito flag is not set
     if (!includeCognito) {
-      if (relativePath.includes('infrastructure/src/resources/cognito')) {
+      if (relativePath.includes('infrastructure/src/resources/cognito') ||
+          relativePath.includes('infrastructure\\src\\resources\\cognito')) {
         continue;
       }
     }
 
     if (entry.isDirectory()) {
-      copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments);
+      copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot);
     } else {
       let content = fs.readFileSync(srcPath, 'utf8');
 
@@ -552,7 +572,7 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
       // Replace conditional scripts in root package.json
       if (entry.name === 'package.json' && srcPath === path.join(src, 'package.json')) {
         const pkg = JSON.parse(content);
-        if (!includeLambda) {
+        if (!includeLambda && pkg.scripts) {
           // Remove Lambda build scripts
           delete pkg.scripts['build:lambdas'];
           pkg.scripts.build = 'bun run build:website';
@@ -786,6 +806,7 @@ ${cognitoUserPoolClients},
 }
 
 main().catch((error) => {
-  console.error(chalk.red('Error:', error));
+  console.error(chalk.red('Error:', error.message));
+  console.error(error.stack);
   process.exit(1);
 });

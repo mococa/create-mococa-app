@@ -32,6 +32,8 @@ npx create-mococa-app [directory] [flags]
 - `[directory]` - Optional. Target directory for the project (e.g., `.`, `./my-app`, `my-app`)
 
 **Flags:**
+- `--name <project-name>` - Project name (skips prompt for non-interactive use)
+- `--domain <domain>` - Domain name (skips prompt for non-interactive use)
 - `--skip` - Skip all optional features (creates minimal project)
 - `--api` - Include Elysia API server (Bun-based)
 - `--cognito` - Include AWS Cognito authentication (requires `--api`)
@@ -54,6 +56,9 @@ npx create-mococa-app my-app --api --cognito
 
 # Minimal project (no optional features)
 npx create-mococa-app --skip
+
+# Non-interactive mode (useful for CI/CD)
+npx create-mococa-app my-app --name my-app --domain my-app.com --skip
 
 # With Elysia API server
 npx create-mococa-app --api
