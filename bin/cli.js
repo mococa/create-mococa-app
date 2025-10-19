@@ -32,6 +32,9 @@ function showHelp() {
   console.log('  --current, -c               Create project in current directory');
   console.log('  --domain <domain>           Specify custom domain (default: {project-name}.com)');
   console.log('  --skip                      Skip all prompts and use default values');
+  console.log('  --full                      Skip prompts and include all features');
+  console.log('  --except, -e <feature>      Exclude features when using --full (can be used multiple times)');
+  console.log('                              Valid features: api, cognito, lambda, dynamo, s3, environments');
   console.log(`  --api                       Include Elysia API server (Bun-based, default: ${defaultValues.api})`);
   console.log(`  --cognito                   Include AWS Cognito authentication (default: ${defaultValues.cognito})`);
   console.log(`  --lambda                    Include AWS Lambda + API Gateway infrastructure (default: ${defaultValues.lambda})`);
@@ -55,7 +58,16 @@ function showHelp() {
   console.log('  # Skip prompts but include specific features');
   console.log('  npx create-mococa-app my-app --skip --cognito --dynamo\n');
 
-  console.log('  # Full setup with all features');
+  console.log('  # Full setup with all features (no prompts)');
+  console.log('  npx create-mococa-app my-app --full\n');
+
+  console.log('  # Full setup except specific features');
+  console.log('  npx create-mococa-app my-app --full --except=s3 --except=dynamo\n');
+
+  console.log('  # Full setup except specific features (short flag)');
+  console.log('  npx create-mococa-app my-app --full -e s3 -e dynamo\n');
+
+  console.log('  # Full setup with manual feature selection');
   console.log('  npx create-mococa-app my-app --api --cognito --lambda --dynamo --s3 --environments\n');
 
   console.log(chalk.bold('Documentation:'));
@@ -75,29 +87,70 @@ async function main() {
   console.log(chalk.bold.blue('\n🚀 Create Mococa App\n'));
 
   const skipPrompts = args.includes('--skip');
+  const fullSetup = args.includes('--full');
 
-  // When --skip is used, start with defaults. Individual flags can override.
-  const includeLambda = args.includes('--lambda') || (!skipPrompts ? null : defaultValues.lambda);
-  const includeDynamo = args.includes('--dynamo') || (!skipPrompts ? null : defaultValues.dynamo);
-  const includeS3 = args.includes('--s3') || (!skipPrompts ? null : defaultValues.s3);
-  const includeApi = args.includes('--api') || (!skipPrompts ? null : defaultValues.api);
-  const includeCognito = args.includes('--cognito') || (!skipPrompts ? null : defaultValues.cognito);
-  const includeEnvironments = args.includes('--environments') || (!skipPrompts ? null : defaultValues.environments);
-  const useCurrentDir = args.includes('--current') || args.includes('-c');
+  // Helper function to parse multiple text flag values (e.g., --except=s3 --except=dynamo)
+  const parseMultiTextFlag = (flagName) => {
+    const values = [];
+    args.forEach((arg, index) => {
+      if (arg.startsWith(flagName)) {
+        if (arg.includes('=')) {
+          values.push(arg.split('=')[1]);
+        } else if (args[index + 1] && !args[index + 1].startsWith('--')) {
+          values.push(args[index + 1]);
+        }
+      }
+    });
+    return values;
+  };
+
+  const exceptFlags = parseMultiTextFlag('--except').concat(parseMultiTextFlag('-e'));
+
+  // Helper function to parse boolean feature flags
+  // Returns: true if flag is present OR --full is used (unless excepted), otherwise uses default/null
+  const parseFlag = (flagName, defaultKey) => {
+    // Check if this feature is in the except list
+    if (exceptFlags.includes(defaultKey)) return false;
+
+    if (args.includes(flagName)) return true;
+    if (fullSetup) return true;
+    if (skipPrompts) return defaultValues[defaultKey];
+    return null;
+  };
+
+  // Helper function to parse text/value flags
+  // Supports both --flag=value and --flag value formats
+  const parseTextFlag = (flagName) => {
+    const flagIndex = args.findIndex(arg => arg.startsWith(flagName));
+    if (flagIndex === -1) return { value: null, valueIndex: -1 };
+
+    const flagArg = args[flagIndex];
+    if (flagArg.includes('=')) {
+      return { value: flagArg.split('=')[1], valueIndex: -1 };
+    }
+
+    if (args[flagIndex + 1] && !args[flagIndex + 1].startsWith('--')) {
+      return { value: args[flagIndex + 1], valueIndex: flagIndex + 1 };
+    }
+
+    return { value: null, valueIndex: -1 };
+  };
+
+  // Helper function to parse simple boolean flags (no prompting/defaults)
+  const parseSimpleFlag = (...flagNames) => {
+    return flagNames.some(flag => args.includes(flag));
+  };
+
+  const includeLambda = parseFlag('--lambda', 'lambda');
+  const includeDynamo = parseFlag('--dynamo', 'dynamo');
+  const includeS3 = parseFlag('--s3', 's3');
+  const includeApi = parseFlag('--api', 'api');
+  const includeCognito = parseFlag('--cognito', 'cognito');
+  const includeEnvironments = parseFlag('--environments', 'environments');
+  const useCurrentDir = parseSimpleFlag('--current', '-c');
 
   // Extract --domain flag value
-  const domainFlagIndex = args.findIndex(arg => arg.startsWith('--domain'));
-  let customDomain = null;
-  let domainValueIndex = -1;
-  if (domainFlagIndex !== -1) {
-    const domainArg = args[domainFlagIndex];
-    if (domainArg.includes('=')) {
-      customDomain = domainArg.split('=')[1];
-    } else if (args[domainFlagIndex + 1] && !args[domainFlagIndex + 1].startsWith('--')) {
-      customDomain = args[domainFlagIndex + 1];
-      domainValueIndex = domainFlagIndex + 1;
-    }
-  }
+  const { value: customDomain, valueIndex: domainValueIndex } = parseTextFlag('--domain');
 
   // First non-flag argument is the project name (excluding domain value)
   const customProjectName = args.find((arg, index) =>

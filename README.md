@@ -32,9 +32,13 @@ npx create-mococa-app [project-name] [flags]
 - `[project-name]` - Optional. Name of your project (e.g., `my-app`, `my-cool-project`)
 
 **Flags:**
+- `--help` or `-h` - Show help message
 - `--current` or `-c` - Create project in current directory
 - `--domain <domain>` - Specify custom domain (default: `{project-name}.com`)
 - `--skip` - Skip all prompts and use default values (can be combined with other flags)
+- `--full` - Skip prompts and include all features
+- `--except <feature>` or `-e <feature>` - Exclude features when using `--full` (can be used multiple times)
+  - Valid features: `api`, `cognito`, `lambda`, `dynamo`, `s3`, `environments`
 - `--api` - Include Elysia API server (Bun-based)
 - `--cognito` - Include AWS Cognito authentication
 - `--lambda` - Include AWS Lambda + API Gateway infrastructure
@@ -65,6 +69,15 @@ npx create-mococa-app my-app --skip
 
 # Skip prompts but include specific features
 npx create-mococa-app my-app --skip --cognito
+
+# Full setup with all features (no prompts)
+npx create-mococa-app my-app --full
+
+# Full setup except specific features
+npx create-mococa-app my-app --full --except=s3 --except=dynamo
+
+# Full setup except specific features (short flag)
+npx create-mococa-app my-app --full -e s3 -e dynamo
 
 # With Elysia API server
 npx create-mococa-app my-app --api
