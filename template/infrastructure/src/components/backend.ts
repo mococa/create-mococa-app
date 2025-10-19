@@ -11,6 +11,7 @@ import { DNSResource } from '../resources/dns';
 /* ---------- Constants ---------- */
 import {
   DOMAIN_BASE,
+  DOMAINS,
   DYNAMODB_TABLES,
   S3_BUCKETS,
   COGNITO_USER_POOLS,
@@ -29,11 +30,6 @@ interface Props {
    * ACM certificate ARN for API Gateway custom domain
    */
   certificateArn: string;
-
-  /**
-   * Custom domain for API Gateway
-   */
-  apigwDomain: string;
 }
 
 export class BackendComponent extends ComponentResource {
@@ -45,9 +41,10 @@ export class BackendComponent extends ComponentResource {
   public constructor(name: string, props: Props, opts?: ComponentResourceOptions) {
     super(`${name}:backend:${props.environment}`, name, {}, opts);
 
-    const { environment, certificateArn, apigwDomain } = props;
+    const { environment, certificateArn } = props;
 
     /* ---------- Resource Names ---------- */
+    const apigwDomain = DOMAINS.apigw[environment as Environment];
     const tableName = DYNAMODB_TABLES[environment as Environment];
     const bucketName = S3_BUCKETS[environment as Environment];
     const userpoolName = COGNITO_USER_POOLS[environment as Environment];

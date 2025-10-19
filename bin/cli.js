@@ -686,11 +686,11 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           // Remove specific exports based on flags
           if (!includeLambda) {
             content = content.replace(/export const apigwUrl = backend\.apigateway\.api\.apiEndpoint;\n/g, '');
-            // Remove apigwDomain variable
-            content = content.replace(/const apigwDomain = DOMAINS\.apigw\[environment\];\n/g, '');
-            // Remove certificateArn and apigwDomain from backend props
-            content = content.replace(/  certificateArn: certificate\.acm\.arn,\n/g, '');
-            content = content.replace(/  apigwDomain,\n/g, '');
+            // Remove certificateArn from backend props and dependsOn
+            content = content.replace(
+              /const backend = new BackendComponent\(\n  `backend-\$\{environment\}`,\n  \{\n    environment,\n    certificateArn: certificate\.acm\.arn,\n  \},\n  \{ dependsOn: \[certificate\.acm\] \},\n\);/g,
+              'const backend = new BackendComponent(`backend-${environment}`, {\n  environment,\n});'
+            );
           }
           if (!includeDynamo) {
             content = content.replace(/export const dynamoTableName = backend\.dynamo\.table\.name;\n/g, '');
@@ -752,9 +752,11 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           content = content.replace(/import \{ ApigatewayResource \} from '\.\.\/resources\/apigateway';\n/g, '');
           content = content.replace(/import \{ DNSResource \} from '\.\.\/resources\/dns';\n/g, '');
           content = content.replace(/  DOMAIN_BASE,\n/g, '');
+          content = content.replace(/  DOMAINS,\n/g, '');
           content = content.replace(/  public readonly apigateway: ApigatewayResource;\n/g, '');
-          content = content.replace(/  \/\*\*\n   \* ACM certificate ARN for API Gateway custom domain\n   \*\/\n  certificateArn: string;\n\n  \/\*\*\n   \* Custom domain for API Gateway\n   \*\/\n  apigwDomain: string;\n/g, '');
-          content = content.replace(/, certificateArn, apigwDomain/g, '');
+          content = content.replace(/  \/\*\*\n   \* ACM certificate ARN for API Gateway custom domain\n   \*\/\n  certificateArn: string;\n/g, '');
+          content = content.replace(/, certificateArn/g, '');
+          content = content.replace(/    const apigwDomain = DOMAINS\.apigw\[environment as Environment\];\n/g, '');
           content = content.replace(/\n\n    \/\* ---------- API Gateway \+ Lambdas ---------- \*\/[\s\S]*?(?=\n  \})/g, '');
         } else if (!includeDynamo) {
           // If Lambda is included but DynamoDB is not, remove the dynamodb prop from apigateway

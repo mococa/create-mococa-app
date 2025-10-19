@@ -45,12 +45,14 @@ new DNSResource(
 );
 
 /* ---------- Backend ---------- */
-const apigwDomain = DOMAINS.apigw[environment];
-const backend = new BackendComponent(`backend-${environment}`, {
-  environment,
-  certificateArn: certificate.acm.arn,
-  apigwDomain,
-});
+const backend = new BackendComponent(
+  `backend-${environment}`,
+  {
+    environment,
+    certificateArn: certificate.acm.arn,
+  },
+  { dependsOn: [certificate.acm] },
+);
 
 /* ---------- Exports ---------- */
 export const websiteUrl = website.website.websiteEndpoint;
