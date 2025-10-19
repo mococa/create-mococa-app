@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A monorepo project with Nullstack and Biome",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": ["packages/*", "apps/*", "infrastructure"],
   "scripts": {
     "start": "cd apps/landing-page && bun run start",
     "build:lambdas": "cd packages/lambdas && bun run build",
