@@ -9,6 +9,16 @@ import prompts from 'prompts';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Default values when --skip is used
+const defaultValues = {
+  api: false,
+  cognito: false,
+  lambda: false,
+  dynamo: false,
+  s3: false,
+  environments: false,
+};
+
 function showHelp() {
   console.log(chalk.bold.blue('\n🚀 Create Mococa App\n'));
   console.log(chalk.bold('Usage:'));
@@ -22,12 +32,12 @@ function showHelp() {
   console.log('  --current, -c               Create project in current directory');
   console.log('  --domain <domain>           Specify custom domain (default: {project-name}.com)');
   console.log('  --skip                      Skip all prompts and use default values');
-  console.log('  --api                       Include Elysia API server (Bun-based)');
-  console.log('  --cognito                   Include AWS Cognito authentication');
-  console.log('  --lambda                    Include AWS Lambda + API Gateway infrastructure');
-  console.log('  --dynamo                    Include DynamoDB infrastructure');
-  console.log('  --s3                        Include S3 storage bucket infrastructure');
-  console.log('  --environments              Configure multiple environments\n');
+  console.log(`  --api                       Include Elysia API server (Bun-based, default: ${defaultValues.api})`);
+  console.log(`  --cognito                   Include AWS Cognito authentication (default: ${defaultValues.cognito})`);
+  console.log(`  --lambda                    Include AWS Lambda + API Gateway infrastructure (default: ${defaultValues.lambda})`);
+  console.log(`  --dynamo                    Include DynamoDB infrastructure (default: ${defaultValues.dynamo})`);
+  console.log(`  --s3                        Include S3 storage bucket infrastructure (default: ${defaultValues.s3})`);
+  console.log(`  --environments              Configure multiple environments (default: ${defaultValues.environments})\n`);
 
   console.log(chalk.bold('Examples:'));
   console.log('  # Interactive prompts');
@@ -65,16 +75,6 @@ async function main() {
   console.log(chalk.bold.blue('\n🚀 Create Mococa App\n'));
 
   const skipPrompts = args.includes('--skip');
-
-  // Default values when --skip is used
-  const defaultValues = {
-    api: false,
-    cognito: false,
-    lambda: false,
-    dynamo: false,
-    s3: false,
-    environments: false,
-  };
 
   // When --skip is used, start with defaults. Individual flags can override.
   const includeLambda = args.includes('--lambda') || (!skipPrompts ? null : defaultValues.lambda);
@@ -184,7 +184,7 @@ async function main() {
           { title: 'Elysia (Bun)', value: 'elysia' }
         ],
         initial: 0,
-        skip: function(prev, values) {
+        skip: function (prev, values) {
           return !values.wantApi;
         }
       },
@@ -193,7 +193,7 @@ async function main() {
         name: 'wantCognito',
         message: 'Include AWS Cognito authentication (email/password)?',
         initial: false,
-        skip: function(prev, values) {
+        skip: function (prev, values) {
           return !values.wantApi;
         }
       },
