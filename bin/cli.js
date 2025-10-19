@@ -9,11 +9,60 @@ import prompts from 'prompts';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function main() {
+function showHelp() {
   console.log(chalk.bold.blue('\n🚀 Create Mococa App\n'));
+  console.log(chalk.bold('Usage:'));
+  console.log('  npx create-mococa-app [project-name] [flags]\n');
 
+  console.log(chalk.bold('Arguments:'));
+  console.log('  [project-name]              Optional. Name of your project (e.g., my-app)\n');
+
+  console.log(chalk.bold('Flags:'));
+  console.log('  --help, -h                  Show this help message');
+  console.log('  --current, -c               Create project in current directory');
+  console.log('  --domain <domain>           Specify custom domain (default: {project-name}.com)');
+  console.log('  --skip                      Skip all prompts and use default values');
+  console.log('  --api                       Include Elysia API server (Bun-based)');
+  console.log('  --cognito                   Include AWS Cognito authentication');
+  console.log('  --lambda                    Include AWS Lambda + API Gateway infrastructure');
+  console.log('  --dynamo                    Include DynamoDB infrastructure');
+  console.log('  --s3                        Include S3 storage bucket infrastructure');
+  console.log('  --environments              Configure multiple environments\n');
+
+  console.log(chalk.bold('Examples:'));
+  console.log('  # Interactive prompts');
+  console.log('  npx create-mococa-app\n');
+
+  console.log('  # Quick start with project name');
+  console.log('  npx create-mococa-app my-app\n');
+
+  console.log('  # Create in current directory');
+  console.log('  npx create-mococa-app my-app --current\n');
+
+  console.log('  # Minimal project (skip prompts)');
+  console.log('  npx create-mococa-app my-app --skip\n');
+
+  console.log('  # Skip prompts but include specific features');
+  console.log('  npx create-mococa-app my-app --skip --cognito --dynamo\n');
+
+  console.log('  # Full setup with all features');
+  console.log('  npx create-mococa-app my-app --api --cognito --lambda --dynamo --s3 --environments\n');
+
+  console.log(chalk.bold('Documentation:'));
+  console.log('  https://github.com/mococa/create-mococa-app\n');
+}
+
+async function main() {
   // Check for flags and positional args
   const args = process.argv.slice(2);
+
+  // Show help if requested
+  if (args.includes('--help') || args.includes('-h')) {
+    showHelp();
+    process.exit(0);
+  }
+
+  console.log(chalk.bold.blue('\n🚀 Create Mococa App\n'));
 
   const skipPrompts = args.includes('--skip');
 
