@@ -52,21 +52,6 @@ const backend = new BackendComponent(`backend-${environment}`, {
   apigwDomain,
 });
 
-// API Gateway DNS
-const apigwSubdomain = apigwDomain.replace(`.${DOMAIN_BASE}`, '');
-new DNSResource(
-  `api-dns-${environment}`,
-  {
-    environment,
-    subdomain: apigwSubdomain,
-    name: 'api',
-    cname: backend.apigateway.domain.domainNameConfiguration.targetDomainName,
-    type: 'CNAME',
-    comment: 'API Gateway',
-  },
-  { dependsOn: [backend.apigateway.domain] },
-);
-
 /* ---------- Exports ---------- */
 export const websiteUrl = website.website.websiteEndpoint;
 export const apigwUrl = backend.apigateway.api.apiEndpoint;

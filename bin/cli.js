@@ -684,44 +684,8 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
           content = content.replace(/export const cognitoUserPoolClientId = backend\.cognito\.userpoolClient\.id;\n/g, '');
         } else {
           // Remove specific exports based on flags
-          // Add resource name imports and props
-          let backendPropsAddition = '';
-          let constantsImports = [];
-
-          if (includeDynamo) {
-            constantsImports.push('DYNAMODB_TABLES');
-            backendPropsAddition += `  dynamoTableName: DYNAMODB_TABLES[environment],\n`;
-          }
-
-          if (includeS3) {
-            constantsImports.push('S3_BUCKETS');
-            backendPropsAddition += `  s3BucketName: S3_BUCKETS[environment],\n`;
-          }
-
-          if (includeCognito) {
-            constantsImports.push('COGNITO_USER_POOLS', 'COGNITO_USER_POOL_CLIENTS');
-            backendPropsAddition += `  cognitoUserpoolName: COGNITO_USER_POOLS[environment],\n  cognitoUserpoolClientName: COGNITO_USER_POOL_CLIENTS[environment],\n`;
-          }
-
-          // Update constants import to include what we need
-          if (constantsImports.length > 0) {
-            const constantsImportStr = constantsImports.join(', ');
-            content = content.replace(
-              /import \{ DOMAIN_BASE, DOMAINS, type Environment \} from '@\{\{PROJECT_NAME\}\}\/constants';/g,
-              `import { DOMAIN_BASE, DOMAINS, ${constantsImportStr}, type Environment } from '@{{PROJECT_NAME}}/constants';`
-            );
-          }
-
-          // Add the props to BackendComponent instantiation
-          content = content.replace(
-            /const backend = new BackendComponent\(`backend-\$\{environment\}`, \{\n  environment,\n  certificateArn: certificate\.acm\.arn,\n  apigwDomain,\n\}\);/g,
-            `const backend = new BackendComponent(\`backend-\${environment}\`, {\n  environment,\n  certificateArn: certificate.acm.arn,\n  apigwDomain,\n${backendPropsAddition}});`
-          );
-
           if (!includeLambda) {
             content = content.replace(/export const apigwUrl = backend\.apigateway\.api\.apiEndpoint;\n/g, '');
-            // Remove API Gateway DNS record
-            content = content.replace(/\/\/ API Gateway DNS\nconst apigwSubdomain = apigwDomain\.replace\(`\.\$\{DOMAIN_BASE\}`, ''\);\nnew DNSResource\([\s\S]*?\{ dependsOn: \[backend\.apigateway\.domain\] \},\n\);\n\n/g, '');
             // Remove apigwDomain variable
             content = content.replace(/const apigwDomain = DOMAINS\.apigw\[environment\];\n/g, '');
             // Remove certificateArn and apigwDomain from backend props
@@ -743,38 +707,53 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
 
       // Update backend component to remove unused resources
       if (entry.name === 'backend.ts' && srcPath.includes('infrastructure/src/components')) {
+        // Build the constants import based on what's included
+        let constantsToRemove = [];
+        if (!includeDynamo) constantsToRemove.push('DYNAMODB_TABLES');
+        if (!includeS3) constantsToRemove.push('S3_BUCKETS');
+        if (!includeCognito) constantsToRemove.push('COGNITO_USER_POOLS', 'COGNITO_USER_POOL_CLIENTS');
+
+        // Update constants import to remove unused ones
+        if (constantsToRemove.length > 0) {
+          constantsToRemove.forEach(constant => {
+            content = content.replace(new RegExp(`  ${constant},\\n`, 'g'), '');
+            content = content.replace(new RegExp(`,\\n  ${constant}`, 'g'), '');
+          });
+        }
+
         // Remove DynamoDB if not included
         if (!includeDynamo) {
-          content = content.replace(/import \{ DynamoResource \}.*\n/g, '');
-          content = content.replace(/public readonly dynamo: DynamoResource;\n/g, '');
-          content = content.replace(/\/\*\*\n   \* DynamoDB table name\n   \*\/\n  dynamoTableName: string;\n\n/g, '');
-          content = content.replace(/, dynamoTableName/g, '');
-          content = content.replace(/\/\* ---------- DynamoDB ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
+          content = content.replace(/import \{ DynamoResource \} from '\.\.\/resources\/dynamo';\n/g, '');
+          content = content.replace(/  public readonly dynamo: DynamoResource;\n/g, '');
+          content = content.replace(/    \/\* ---------- Resource Names ---------- \*\/\n    const tableName = DYNAMODB_TABLES\[environment as Environment\];\n/g, '    /* ---------- Resource Names ---------- */\n');
+          content = content.replace(/    const tableName = DYNAMODB_TABLES\[environment as Environment\];\n/g, '');
+          content = content.replace(/\n\n    \/\* ---------- DynamoDB ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------)/g, '');
         }
 
         // Remove S3 if not included
         if (!includeS3) {
-          content = content.replace(/import \{ S3StorageResource \}.*\n/g, '');
-          content = content.replace(/public readonly storage: S3StorageResource;\n/g, '');
-          content = content.replace(/\/\*\*\n   \* S3 storage bucket name\n   \*\/\n  s3BucketName: string;\n\n/g, '');
-          content = content.replace(/, s3BucketName/g, '');
-          content = content.replace(/\/\* ---------- S3 Storage ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
+          content = content.replace(/import \{ S3StorageResource \} from '\.\.\/resources\/s3-storage';\n/g, '');
+          content = content.replace(/  public readonly storage: S3StorageResource;\n/g, '');
+          content = content.replace(/    const bucketName = S3_BUCKETS\[environment as Environment\];\n/g, '');
+          content = content.replace(/\n\n    \/\* ---------- S3 Storage ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------)/g, '');
         }
 
         // Remove Cognito if not included
         if (!includeCognito) {
-          content = content.replace(/import \{ CognitoResource \}.*\n/g, '');
-          content = content.replace(/public readonly cognito: CognitoResource;\n/g, '');
-          content = content.replace(/\/\*\*\n   \* Cognito User Pool name\n   \*\/\n  cognitoUserpoolName: string;\n\n  \/\*\*\n   \* Cognito User Pool Client name\n   \*\/\n  cognitoUserpoolClientName: string;\n/g, '');
-          content = content.replace(/, cognitoUserpoolName, cognitoUserpoolClientName/g, '');
-          content = content.replace(/\/\* ---------- Cognito ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------|$)/g, '');
+          content = content.replace(/import \{ CognitoResource \} from '\.\.\/resources\/cognito';\n/g, '');
+          content = content.replace(/  public readonly cognito: CognitoResource;\n/g, '');
+          content = content.replace(/    const userpoolName = COGNITO_USER_POOLS\[environment as Environment\];\n/g, '');
+          content = content.replace(/    const userpoolClientName = COGNITO_USER_POOL_CLIENTS\[environment as Environment\];\n/g, '');
+          content = content.replace(/\n\n    \/\* ---------- Cognito ---------- \*\/[\s\S]*?(?=\n\n    \/\* ----------)/g, '');
         }
 
         // Remove API Gateway if not included
         if (!includeLambda) {
           content = content.replace(/import \{ ApigatewayResource \} from '\.\.\/resources\/apigateway';\n/g, '');
+          content = content.replace(/import \{ DNSResource \} from '\.\.\/resources\/dns';\n/g, '');
+          content = content.replace(/  DOMAIN_BASE,\n/g, '');
           content = content.replace(/  public readonly apigateway: ApigatewayResource;\n/g, '');
-          content = content.replace(/  \/\*\*\n   \* ACM certificate ARN for API Gateway custom domain\n   \*\/\n  certificateArn: string;\n\n  \/\*\*\n   \* Custom domain for API Gateway\n   \*\/\n  apigwDomain: string;\n\n/g, '');
+          content = content.replace(/  \/\*\*\n   \* ACM certificate ARN for API Gateway custom domain\n   \*\/\n  certificateArn: string;\n\n  \/\*\*\n   \* Custom domain for API Gateway\n   \*\/\n  apigwDomain: string;\n/g, '');
           content = content.replace(/, certificateArn, apigwDomain/g, '');
           content = content.replace(/\n\n    \/\* ---------- API Gateway \+ Lambdas ---------- \*\/[\s\S]*?(?=\n  \})/g, '');
         } else if (!includeDynamo) {
