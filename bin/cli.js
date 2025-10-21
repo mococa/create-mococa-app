@@ -784,6 +784,18 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
         content = JSON.stringify(pkg, null, 2) + '\n';
       }
 
+      // Remove lambdas dependency from infrastructure package.json if Lambda is not included
+      if (entry.name === 'package.json' && srcPath.includes('infrastructure') && !srcPath.includes('landing-page')) {
+        const pkg = JSON.parse(content);
+        if (!includeLambda && pkg.dependencies) {
+          const lambdasKey = `@${projectName}/lambdas`;
+          if (pkg.dependencies[lambdasKey]) {
+            delete pkg.dependencies[lambdasKey];
+          }
+        }
+        content = JSON.stringify(pkg, null, 2) + '\n';
+      }
+
       fs.writeFileSync(destPath, content);
     }
   }
