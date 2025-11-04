@@ -472,27 +472,57 @@ async function cloneAndConfigureElysiaApi(targetPath, projectName, environments,
     console.log(chalk.cyan('  Updating environment configuration...'));
     const envExamplePath = path.join(apiPath, '.env.example');
     let envContent = fs.readFileSync(envExamplePath, 'utf8');
-    envContent = envContent.replace(
-      'ENV="development" # or "production"',
-      'ENV="development" # or "production"\nENVIRONMENT="development" # development, staging, production'
-    );
+    // No changes needed - .env.example already has ENVIRONMENT variable
     fs.writeFileSync(envExamplePath, envContent);
 
-    // Update docker-compose.yml
+    // Update docker-compose.yml with project-specific names
     console.log(chalk.cyan('  Updating docker-compose.yml...'));
     const dockerComposePath = path.join(apiPath, 'docker-compose.yml');
     if (fs.existsSync(dockerComposePath)) {
       let dockerContent = fs.readFileSync(dockerComposePath, 'utf8');
-      dockerContent = dockerContent.replace(/bun_app/g, `${projectName}_api`);
+      dockerContent = dockerContent.replace(/\{\{project-name\}\}/g, projectName);
       fs.writeFileSync(dockerComposePath, dockerContent);
     }
+
+    // Update systemd service file
+    console.log(chalk.cyan('  Updating systemd service file...'));
+    const serviceFiles = fs.readdirSync(apiPath).filter(f => f.endsWith('.service'));
+    if (serviceFiles.length > 0) {
+      const servicePath = path.join(apiPath, serviceFiles[0]);
+      let serviceContent = fs.readFileSync(servicePath, 'utf8');
+
+      // Replace template variables
+      serviceContent = serviceContent.replace(/\{\{PROJECT_NAME\}\}/g, projectName.toUpperCase().replace(/-/g, '_'));
+      serviceContent = serviceContent.replace(/\{\{project-name\}\}/g, projectName);
+      serviceContent = serviceContent.replace(/\{\{USER\}\}/g, process.env.USER || 'user');
+      serviceContent = serviceContent.replace(/\{\{WORKING_DIRECTORY\}\}/g, path.resolve(apiPath));
+
+      // Rename file to project-specific name
+      const newServiceName = `${projectName}-api.service`;
+      fs.renameSync(servicePath, path.join(apiPath, newServiceName));
+      fs.writeFileSync(path.join(apiPath, newServiceName), serviceContent);
+    }
+
+    // Update package.json scripts with project-specific names
+    console.log(chalk.cyan('  Updating package.json scripts...'));
+    const pkgPath2 = path.join(apiPath, 'package.json');
+    const pkg2 = JSON.parse(fs.readFileSync(pkgPath2, 'utf8'));
+    if (pkg2.scripts) {
+      // Update all scripts that reference {{project-name}}
+      for (const [key, value] of Object.entries(pkg2.scripts)) {
+        if (typeof value === 'string' && value.includes('{{project-name}}')) {
+          pkg2.scripts[key] = value.replace(/\{\{project-name\}\}/g, projectName);
+        }
+      }
+    }
+    fs.writeFileSync(pkgPath2, JSON.stringify(pkg2, null, 2) + '\n');
 
     // Update API README.md
     console.log(chalk.cyan('  Updating API README.md...'));
     const apiReadmePath = path.join(apiPath, 'README.md');
     if (fs.existsSync(apiReadmePath)) {
       let readmeContent = fs.readFileSync(apiReadmePath, 'utf8');
-      readmeContent = readmeContent.replace(/bun_app/g, projectName);
+      readmeContent = readmeContent.replace(/\{\{project-name\}\}/g, projectName);
       fs.writeFileSync(apiReadmePath, readmeContent);
     }
 
@@ -839,6 +869,11 @@ function generateReadme(projectName, includeApi, includeLambda, includeDynamo, i
   ];
   if (includeApi) {
     techStack.push('- [Elysia](https://elysiajs.com/) - Fast Bun web framework');
+    techStack.push('- [Drizzle ORM](https://orm.drizzle.team/) - TypeScript ORM for SQLite');
+    techStack.push('- [AbacatePay](https://abacatepay.com/) - Brazilian Pix payment integration');
+    techStack.push('- [Redis](https://redis.io/) - Session management and caching');
+    techStack.push('- [Docker Compose](https://docs.docker.com/compose/) - Container orchestration');
+    techStack.push('- [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) - Secure public access');
   }
   if (hasAnyBackend) {
     techStack.push('- [Pulumi](https://www.pulumi.com/) - Infrastructure as Code');
@@ -881,6 +916,82 @@ Tear down resources:
 \`\`\`bash
 cd infrastructure
 bun run destroy
+\`\`\``;
+  }
+
+  // API Section
+  let apiSection = '';
+  if (includeApi) {
+    apiSection = `
+
+## API Development
+
+The API server uses Elysia with SQLite + Drizzle ORM.
+
+### Build and Run API
+
+\`\`\`bash
+cd apps/api
+
+# Build the application (creates dist/)
+bun run build
+
+# Copy environment file to dist
+cp .env dist/.env
+
+# Start with Docker Compose (Redis, API, Cloudflared)
+docker compose up -d
+
+# OR run locally
+bun run start
+
+# Development mode (with auto-reload)
+bun run dev
+\`\`\`
+
+### Database Management
+
+\`\`\`bash
+cd apps/api
+
+# Generate migration from schema changes
+bun run db:generate
+
+# Push schema directly to database
+bun run db:push
+
+# Open Drizzle Studio GUI
+bun run db:studio
+\`\`\`
+
+### Deployment
+
+#### Option 1: Docker Compose
+
+\`\`\`bash
+cd apps/api
+bun run build
+cp .env dist/.env
+# Configure CLOUDFLARE_TUNNEL_TOKEN in dist/.env
+docker compose up -d
+\`\`\`
+
+#### Option 2: Systemd Service
+
+\`\`\`bash
+cd apps/api
+bun run build
+cp .env dist/.env
+bun run setup:daemon
+sudo systemctl start ${projectName}-api
+\`\`\`
+
+### View Logs
+
+\`\`\`bash
+bun run logs           # API logs
+bun run logs:redis     # Redis logs
+bun run logs:tunnel    # Cloudflare Tunnel logs
 \`\`\``;
   }
 
@@ -928,7 +1039,7 @@ ${structureItems.join('\n')}
 
 ## Tech Stack
 
-${techStack.join('\n')}${backendSection}
+${techStack.join('\n')}${apiSection}${backendSection}
 `;
 }
 
