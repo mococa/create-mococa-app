@@ -674,6 +674,13 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
       }
     }
 
+    // Skip SDK package if API is not Elysia
+    if (!includeApi || apiType !== 'elysia') {
+      if (relativePath.startsWith('packages/sdk')) {
+        continue;
+      }
+    }
+
     if (entry.isDirectory()) {
       copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot);
     } else {
@@ -689,7 +696,7 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
 
       // Generate README based on included features
       if (entry.name === 'README.md' && srcPath === path.join(src, 'README.md')) {
-        content = generateReadme(projectName, includeApi, includeLambda, includeDynamo, includeS3, includeCognito);
+        content = generateReadme(projectName, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito);
       }
 
       // Generate Pulumi config files for each environment
@@ -843,7 +850,7 @@ function generatePulumiEnvConfig(projectName, environment) {
 `;
 }
 
-function generateReadme(projectName, includeApi, includeLambda, includeDynamo, includeS3, includeCognito) {
+function generateReadme(projectName, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito) {
   const hasAnyBackend = includeLambda || includeDynamo || includeS3 || includeCognito;
 
   // Project Structure section
@@ -853,6 +860,9 @@ function generateReadme(projectName, includeApi, includeLambda, includeDynamo, i
   }
   structureItems.push('- `packages/ui` - Shared UI components library');
   structureItems.push('- `packages/constants` - Project constants and environment configuration');
+  if (includeApi && apiType === 'elysia') {
+    structureItems.push('- `packages/sdk` - Type-safe API client with Elysia Treaty');
+  }
   if (includeLambda) {
     structureItems.push('- `packages/lambdas` - Lambda functions');
   }
@@ -867,8 +877,9 @@ function generateReadme(projectName, includeApi, includeLambda, includeDynamo, i
     '- [Biome](https://biomejs.dev/) - Fast formatter and linter',
     '- [Bun](https://bun.sh/) - Fast JavaScript runtime and package manager with workspaces'
   ];
-  if (includeApi) {
+  if (includeApi && apiType === 'elysia') {
     techStack.push('- [Elysia](https://elysiajs.com/) - Fast Bun web framework');
+    techStack.push('- [Elysia Eden/Treaty](https://elysiajs.com/eden/overview.html) - End-to-end type safety for API client');
     techStack.push('- [Drizzle ORM](https://orm.drizzle.team/) - TypeScript ORM for SQLite');
     techStack.push('- [AbacatePay](https://abacatepay.com/) - Brazilian Pix payment integration');
     techStack.push('- [Redis](https://redis.io/) - Session management and caching');

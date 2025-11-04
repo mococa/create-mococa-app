@@ -1,0 +1,18 @@
+{
+  "name": "@{{PROJECT_NAME}}/sdk",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Type-safe SDK for {{PROJECT_NAME}} API",
+  "main": "src/index.ts",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@elysiajs/eden": "^1.1.5",
+    "@{{PROJECT_NAME}}/constants": "workspace:*"
+  },
+  "devDependencies": {
+    "@{{PROJECT_NAME}}/api": "workspace:*"
+  }
+}
