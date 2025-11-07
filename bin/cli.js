@@ -627,7 +627,9 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
 
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
+    // Rename gitignore to .gitignore in the destination (npm strips .gitignore during publish)
+    const destName = entry.name === 'gitignore' ? '.gitignore' : entry.name;
+    const destPath = path.join(dest, destName);
 
     const relativePath = path.relative(templateRoot, srcPath);
 
