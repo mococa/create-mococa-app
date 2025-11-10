@@ -683,6 +683,13 @@ function copyDirectory(src, dest, projectName, domain, includeApi, apiType, incl
       }
     }
 
+    // Skip ELYSIA.md in .prompt if API is not Elysia
+    if (!includeApi || apiType !== 'elysia') {
+      if (relativePath === '.prompt/ELYSIA.md') {
+        continue;
+      }
+    }
+
     if (entry.isDirectory()) {
       copyDirectory(srcPath, destPath, projectName, domain, includeApi, apiType, includeLambda, includeDynamo, includeS3, includeCognito, environments, templateRoot);
     } else {
